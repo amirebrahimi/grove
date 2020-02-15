@@ -316,3 +316,41 @@ def expectation_from_sampling(pyquil_program: Program,
         else:
             expectation -= float(count) / samples
     return expectation
+
+
+if __name__ == "__main__":
+    def small_ansatz(params):
+        return Program(RX(params[0], 0))
+
+    angle = 2.0
+    print(small_ansatz([angle]))
+
+    from pyquil.api import get_qc, QVMConnection
+    qc = get_qc("1q-qvm", noisy=False)
+    from pyquil.paulis import sZ
+    initial_angle = [1.0]
+    # Our Hamiltonian is just \sigma_z on the zeroth qubit
+    hamiltonian = sZ(0)
+
+    from scipy.optimize import minimize
+    vqe_inst = VQE(minimizer=minimize,
+                   minimizer_kwargs={'method': 'nelder-mead'})
+    print(vqe_inst.expectation(small_ansatz([angle]), hamiltonian, samples=None, qc=qc))
+
+    # 1000 samples won't converge, but 10000 will
+    result = vqe_inst.vqe_run(small_ansatz, hamiltonian, initial_angle, samples=10000, disp=print, return_all=True, qc=qc)
+    print(result)
+
+    angle_range = np.linspace(0.0, 2 * np.pi, 20)
+    import matplotlib.pyplot as plt
+    # data = [vqe_inst.expectation(small_ansatz([angle]), hamiltonian, None, qc)
+    #         for angle in angle_range]
+    plt.xlabel('Angle [radians]')
+    plt.ylabel('Expectation value')
+    # plt.plot(angle_range, data)
+    # plt.show()
+    #
+    data = [vqe_inst.expectation(small_ansatz([angle]), hamiltonian, 1000, qc)
+            for angle in angle_range]
+    plt.plot(angle_range, data)
+    plt.show()
